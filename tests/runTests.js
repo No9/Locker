@@ -21,26 +21,29 @@ console.warn = writeLogLine;
 console.error = writeLogLine;
 
 
-// Cleanup the old runs Me dir and then copy the stub in
-try {
-    wrench.rmdirSyncRecursive(lconfig.me);
-} catch (E) {
-    if (E.code != "ENOENT") {
-        process.stderr.write("Error: " + E + "\n");
-        process.exit(1);
+if (process.argv.indexOf("-c") === -1) {
+    try {
+        wrench.rmdirSyncRecursive(lconfig.me);
+    } catch (E) {
+        if (E.code != "ENOENT") {
+            process.stderr.write("Error: " + E + "\n");
+            process.exit(1);
+        }
     }
-}
-wrench.copyDirSyncRecursive(lconfig.me + ".tests", lconfig.me);
+    wrench.copyDirSyncRecursive(lconfig.me + ".tests", lconfig.me);
 
-// Cleanup the old runs ijodtest dir
-try {
-    wrench.rmdirSyncRecursive("ijodtest");
-} catch (E) {
-    if (E.code != "ENOENT") {
-        process.stderr.write("Error: " + E + "\n");
-        process.exit(1);
+    // Cleanup the old runs ijodtest dir
+    try {
+        wrench.rmdirSyncRecursive("ijodtest");
+    } catch (E) {
+        if (E.code != "ENOENT") {
+            process.stderr.write("Error: " + E + "\n");
+            process.exit(1);
+        }
     }
 }
+
+// Cleanup the old runs Me dir and then copy the stub in
 
 // Ladies and gentlemen, get your logs ready
 var logFd = fs.openSync("locker.log", "w+");
@@ -90,6 +93,7 @@ if (process.argv.length > 2) {
     }
     if (process.argv[2] == "-f") {
         // Get the files to run
+        runIntegration = false;
         for (var x = 3; x < process.argv.length; ++x) {
             runFiles.push(process.argv[x]);
         }
@@ -192,7 +196,7 @@ var runTests = function() {
 }
 
 var runRake = function() {
-    var rakeProcess = require("child_process").spawn("rake", [], { cwd: __dirname + "/integration"});
+    var rakeProcess = require("child_process").spawn("rake", ["ci:setup:rspec","default"], { cwd: __dirname + "/integration"});
     rakeProcess.stdout.on("data", function(data) {
         process.stdout.write(data);
     });

@@ -2,12 +2,34 @@ var fs = require('fs')
   , path = require('path')
   , lconfig = require(__dirname + "/lconfig")
   , spawn = require('child_process').spawn
-  , datastore
+  , ldatastore = require('ldatastore')
+  , datastore = {}
   , async = require('async')
   , lutil = require(__dirname + '/lutil')
   , EventEmitter = require('events').EventEmitter
   , levents = require(__dirname + '/levents')
   ;
+
+// this works, but feels like it should be a cleaner abstraction layer on top of the datastore instead of this garbage
+datastore.init = function(callback) {
+    ldatastore.init('synclets', callback);
+}
+
+datastore.addCollection = function(collectionKey, id, mongoId) {
+    ldatastore.addCollection('synclets', collectionKey, id, mongoId);
+}
+
+datastore.removeObject = function(collectionKey, id, ts, callback) {
+    if (typeof(ts) === 'function') {
+        ldatastore.removeObject('synclets', collectionKey, id, {timeStamp: Date.now()}, ts);
+    } else {
+        ldatastore.removeObject('synclets', collectionKey, id, ts, callback);
+    }
+}
+
+datastore.addObject = function(collectionKey, obj, ts, callback) {
+    ldatastore.addObject('synclets', collectionKey, obj, ts, callback);
+}
 
 var synclets = {
     available:[],
@@ -77,7 +99,6 @@ exports.findInstalled = function (callback) {
 }
 
 exports.scanDirectory = function(dir) {
-    datastore = require('./synclet/datastore');
     var files = fs.readdirSync(dir);
     for (var i = 0; i < files.length; i++) {
         var fullPath = dir + '/' + files[i];
@@ -130,7 +151,7 @@ exports.install = function(metaData) {
     for (var i = 0; i < serviceInfo.synclets.length; i++) {
         scheduleRun(serviceInfo, serviceInfo.synclets[i]);
     }
-    levents.fireEvent('newservice', '', '', serviceInfo.title);
+    levents.fireEvent('newservice', '', '', {title:serviceInfo.title, provider:serviceInfo.provider});
     return serviceInfo;
 }
 
@@ -391,7 +412,7 @@ function deleteData (collection, mongoId, deleteIds, info, eventType, callback) 
         newEvent.obj.data[mongoId] = id;
         newEvent.fromService = info.id;
         levents.fireEvent(eventType, newEvent.fromService, newEvent.obj.type, newEvent.obj);
-        datastore.removeObject(collection, id, {timeStampe: Date.now()}, cb);
+        datastore.removeObject(collection, id, {timeStamp: Date.now()}, cb);
     }, 5);
     deleteIds.forEach(q.push);
     q.drain = callback;
@@ -449,8 +470,13 @@ exports.migrate = function(installedDir, metaData) {
                 try {
                     var cwd = process.cwd();
                     migrate = require(cwd + "/" + metaData.srcdir + "/migrations/" + migrations[i]);
+                    console.log("running synclet migration : " + migrations[i] + " for service " + metaData.title);
                     if (migrate(installedDir)) {
+                        var curMe = JSON.parse(fs.readFileSync(path.join(lconfig.lockerDir, installedDir, 'me.json'), 'utf8'));
+                        lutil.extend(true, metaData, curMe);
                         metaData.version = migrations[i].substring(0, 13);
+                        lutil.atomicWriteFileSync(path.join(lconfig.lockerDir, installedDir, 'me.json'),
+                                                  JSON.stringify(metaData, null, 4));
                     }
                     process.chdir(cwd);
                 } catch (E) {

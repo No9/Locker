@@ -27,12 +27,6 @@ var vows = require("vows")
 lconfig.load("Config/config.json");
 var levents = require(__dirname + "/../Common/node/levents");
 var realFireEvent = levents.fireEvent;
-levents.fireEvent = function(type, id, action, obj) {
-    if (type == primaryType || type == otherType) {
-        if (!allEvents.hasOwnProperty(type)) allEvents[type] = [];
-        allEvents[type].push(obj);
-    }
-}
 
 var syncManager = require(__dirname + "/../Common/node/lsyncmanager.js");
 var lmongo = require('../Common/node/lmongo');
@@ -51,6 +45,12 @@ syncManager.eventEmitter.on('eventType/testSynclet', function(event) {
 
 vows.describe("Synclet Manager").addBatch({
     "has a map of the available synclets" : function() {
+        levents.fireEvent = function(type, id, action, obj) {
+            if (type == primaryType || type == otherType) {
+                if (!allEvents.hasOwnProperty(type)) allEvents[type] = [];
+                allEvents[type].push(obj);
+            }
+        }
         assert.include(syncManager, "synclets");
         assert.include(syncManager.synclets(), "available");
         assert.include(syncManager.synclets(), "installed");
@@ -90,7 +90,7 @@ vows.describe("Synclet Manager").addBatch({
                 }
             },
              "manifest data is properly surfaced in the providers call" : function() {
-                assert.equal(syncManager.providers(['contact/twitter'])[0].title, 'Twitter Account');
+                assert.equal(syncManager.providers(['contact/twitter'])[0].title, 'Twitter');
             }
         }
     }

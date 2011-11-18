@@ -93,7 +93,11 @@ CLEngine = function()
             "from":{
                 "name":"name"
             }
-        }
+        },
+        "place" : {
+            "_id":"_id",
+            "title":"title"
+        },
     };
 
     this.engine.Store = {
@@ -163,7 +167,7 @@ CLEngine.prototype.indexType = function(type, source, value, callback) {
     };
     processValue(value, this.mappings[type]);
 
-    if (contentTokens.length == 0) {
+    if (contentTokens.length === 0) {
         console.log("No valid tokens were found to index id " + idToStore);
         return callback(null, 0, 0);
     }
